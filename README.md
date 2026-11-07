@@ -1,32 +1,71 @@
-# OpenGL Flight Simulator
+# EKF Flight Simulator: Autonomous UAV Hackathon Project
 
-![Clang Format](https://github.com/gue-ni/OpenGL_Flightsim/actions/workflows/clang-format.yml/badge.svg)
-![Linux CMake Build](https://github.com/gue-ni/OpenGL_Flightsim/actions/workflows/cmake.yml/badge.svg)
-![Linux CMake Build](https://github.com/gue-ni/OpenGL_Flightsim/actions/workflows/msbuild.yml/badge.svg)
+This repository is an extension of the excellent [gue-ni/OpenGL_Flightsim](https://github.com/gue-ni/OpenGL_Flightsim) project. 
 
-You can read an article about how it works [here](https://www.jakobmaier.at/posts/flight-simulation/). A windows release is available [here](https://github.com/gue-ni/OpenGL_Flightsim/releases/), a linux build can be found at the latest cmake.yml run [here](https://github.com/gue-ni/OpenGL_Flightsim/actions).
+### About the Base Project
+The original **OpenGL_Flightsim** is a simple but realistic-looking flight simulator built from scratch in C++ using OpenGL, SDL2, and GLM. It features a full fixed-wing aerodynamics model, realistic terrain rendering, and joystick/keyboard controls. It serves as the perfect sandbox for testing flight control algorithms.
 
-https://user-images.githubusercontent.com/45669207/221434341-9068181d-0ff3-401a-bf34-29b530a92154.mp4
+### The Hackathon Integration
+For this project, the simulator was modified to create an autonomous UAV mission:
+*   **Fixed-Wing UAV Physics:** The aircraft is controlled via high-level Roll/Pitch commands.
+*   **STM32 EKF Implementation:** An unmodified Multiplicative Extended Kalman Filter (MEKF) in C (`ekf.c`) estimates the aircraft's attitude using synthetic noisy IMU data.
+*   **Computer Vision Guidance:** A Python script (`controller.py`) uses OpenCV to detect a magenta target from the onboard camera and calculates the 3D Line-of-Sight using the EKF's attitude.
+*   **Shared Memory Bridge:** A C++ struct (`sim_types.h`) enables blazing-fast, zero-latency communication between the C++ simulator, the C EKF, and the Python controller.
 
-## Controls
+---
 
-The demo supports input with a keyboard and a joystick. With a keyboard, use WASD to control pitch and roll and F and K to increase and decrease thrust. E and Q control the rudder. You can use P to pause and O to toggle the camera.
+## 🏗️ Software Architecture
 
-## Build instructions (Windows)
+The system is highly modular, with three main processes communicating via shared memory. 
 
-To build this project we need [glm](https://github.com/g-truc/glm), [SDL2](https://www.libsdl.org/) and [GLEW](https://glew.sourceforge.net/). Download these libraries and put them in some location you can find again. As you will see, I put them in 'libraries'. After opening
-the Visual Studio 2022 project go to the 'Property Pages' for the solution and set 'C/C++' -> 'General' -> 'Additional Include Directories' to your GLEW, SDL2 and glm include paths. Next we go to 'Linker' in the 'Property Pages' and set 'General' -> Additional Library Directories' to the appropriate paths.
-Finally we set 'Linker' -> 'Input' -> 'Additional Dependencies' to include SDL2.lib, SDL2main.lib, glew32.lib and opengl32.lib. You may also have to set your environement variables to include 'opengl32.dll' and 'SDL2.dll'.
+*(Insert the architecture image here: `![Software Architecture](architecture.png)`)*
 
+### Interaction Flow (as depicted in the architecture):
+1. **True Position:** The C++ Physics engine (`fixed_wing.h`) moves the airplane.
+2. **Noisy IMU Data:** The IMU Synthesizer generates noisy gyro/accel data and writes it to **Shared Memory**.
+3. **C EKF (The Senses):** Reads the noisy IMU data, runs the Kalman Filter, and writes the **EKF Attitude** back to Shared Memory.
+4. **Camera Renderer:** Captures the raw image from the onboard camera and writes it to Shared Memory.
+5. **Python Controller (The Brain):** Reads the image and the EKF Attitude. It detects the target using OpenCV, calculates the Line-of-Sight math, and writes **Control Commands** to Shared Memory.
+6. **C++ Physics (The Airplane):** Reads the Roll/Pitch commands and applies aerodynamic forces, relying on the EKF Attitude to execute the maneuver.
 
-## Build instructions (Linux)
+---
 
-Install dependencies SDL2, GLEW and OpenGL and build using cmake.
+## 📁 Repository Structure
 
-```
-$ apt install libsdl2-dev libsdl2-image-dev libglew-dev libgle3-dev libglm-dev cmake
-$ mkdir build 
-$ cd build
-$ cmake ..
-$ cmake --build .
-```
+```text
+OpenGL_Flightsim/
+├── CMakeLists.txt                  # Build script: Compiles the GUI sim & headless test runner
+├── HACKATHON_README.md             # Documentation: Explains the EKF integration and how to run it
+├── controller.py                   # THE BRAIN: Python vision, target tracking, and LOS guidance
+├── build/                          # [GENERATED] CMake cache, .o files, and compiled binaries
+│
+├── assets/                         # SIMULATOR RESOURCES
+│   ├── data/                       # Aerodynamic tables (Lift/Drag data)
+│   ├── models/                     # 3D Meshes (Falcon jet, Cessna)
+│   └── textures/                   # Visuals (skybox, terrain, HUD sprites, jet skin)
+│
+├── lib/                            # THIRD-PARTY LIBRARIES (Single-header)
+│   ├── imgui/                      # Dear ImGui: Draws the HUD overlay
+│   ├── stb_image.h                 # Loads .jpg/.png textures
+│   └── tiny_obj_loader.h           # Loads 3D models
+│
+├── shaders/                        # OPENGL RENDERING (Runs on the GPU)
+│   ├── *.vert / *.frag             # Shaders for lighting, terrain, skybox, HUD
+│
+└── src/                            # SOURCE CODE
+    ├── main.cpp                    # App entry point. Sets up window, loads assets, calls UavApp
+    ├── gfx.cpp / gfx.h             # Graphics engine: Handles cameras, meshes, rendering
+    ├── flightmodel.h               # The ORIGINAL complex fixed-wing aerodynamics
+    ├── phi.h / pid.h / terrain.h   # Original math, PID controllers, and terrain logic
+    │
+    └── hackathon/                  # THE CORE HACKATHON INTEGRATION
+        ├── uav_app.cpp / uav_app.h # ORCHESTRATOR: Runs the 100Hz loop, camera capture, shared memory
+        ├── fixed_wing.h            # CUSTOM PHYSICS: Aerodynamics that rely on the EKF to fly
+        ├── ekf_adapter.cpp / .h    # BRIDGE: Generates synthetic noisy IMU data for the EKF
+        ├── ekf.c / ekf.h           # THE FILTER: Unmodified C Multiplicative Extended Kalman Filter
+        ├── magcal.c / magcal.h     # Unmodified C Magnetometer Calibration
+        ├── Gauss_elimination.c/.h  # Unmodified C Matrix Math solver
+        ├── sim_bridge.cpp / .h     # SHARED MEMORY: Allows C++ and Python to talk instantly
+        ├── sim_types.h             # LAYOUT: The exact byte structure of the shared memory
+        ├── target.cpp / target.h   # TARGET: Renders and respawns the magenta sphere
+        └── headless_sim.cpp        # TEST RUNNER: Runs physics + EKF without the GUI (for CI/testing)
