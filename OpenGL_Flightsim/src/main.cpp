@@ -20,6 +20,13 @@
 #include "pid.h"
 #include "terrain.h"
 
+/* Hackathon: 1 = autonomous quadcopter + STM32 EKF + shared-memory link to controller.py,
+               0 = original fixed-wing flight sim */
+#define UAV_MODE 1
+#if UAV_MODE
+#include "hackathon/uav_app.h"
+#endif
+
 using std::cout;
 using std::endl;
 using std::make_shared;
@@ -321,7 +328,9 @@ int main(void)
 
   player.airplane.position = initial_position;
   player.airplane.velocity = glm::vec3(speed, 0.0f, 0.0f);
+#if !UAV_MODE
   scene.add(&player.transform);
+#endif
   objects.push_back(&player);
 
 #if SHOW_MASS_ELEMENTS
@@ -384,6 +393,14 @@ int main(void)
 
   gfx::OrbitController controller(30.0f);
 
+#if UAV_MODE
+  UavApp uav;
+  uav.init(scene, RESOLUTION.x, RESOLUTION.y);
+  // show the jet in the chase view; UavApp moves it and hides it from the onboard camera
+  scene.add(&player.transform);
+  uav.attach_model(&player.transform);
+#endif
+
   SDL_Event event;
   bool quit = false, paused = false, orbit = false;
   uint64_t last = 0, now = SDL_GetPerformanceCounter();
@@ -399,6 +416,7 @@ int main(void)
     now = SDL_GetPerformanceCounter();
     dt = static_cast<phi::Seconds>((now - last) / static_cast<phi::Seconds>(SDL_GetPerformanceFrequency()));
     flight_time += dt;
+    const phi::Seconds frame_dt = std::min(dt, 0.1f);  // UAV mode: real-time physics
     dt = std::min(dt, 0.02f);
 
     if ((timer += dt) >= 1.0f) {
@@ -418,6 +436,9 @@ int main(void)
           break;
         }
         case SDL_KEYDOWN: {
+#if UAV_MODE
+          uav.handle_key(event.key.keysym.sym);
+#endif
           switch (event.key.keysym.sym) {
             case SDLK_ESCAPE: {
               quit = true;
@@ -492,6 +513,9 @@ int main(void)
     window_flags |= ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoResize;
 
+#if UAV_MODE
+    uav.draw_hud(fps);
+#else
     if ((hud_timer += dt) > 0.1f) {
       hud_timer = 0.0f;
       alt = player.airplane.get_altitude();
@@ -515,6 +539,7 @@ int main(void)
     ImGui::Text("Trim:  %.2f", player.airplane.joystick.w);
     ImGui::Text("FPS:   %.1f", fps);
     ImGui::End();
+#endif
 
 #if DEBUG_INFO
     auto angular_velocity = glm::degrees(player.airplane.angular_velocity);
@@ -535,6 +560,11 @@ int main(void)
     ImGui::End();
 #endif
 
+#if UAV_MODE
+    uav.update(frame_dt, paused);
+    if (orbit) controller.update(camera, uav.position(), dt);
+    uav.render(renderer, scene, camera, orbit);
+#else
     get_keyboard_state(joystick, dt);
 
     player.airplane.joystick = glm::vec4(joystick.aileron, joystick.rudder, joystick.elevator, joystick.trim);
@@ -578,6 +608,7 @@ int main(void)
       cross.visible = fpm.visible = true;
     }
     renderer.render(camera, scene);
+#endif
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

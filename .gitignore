@@ -18,3 +18,47 @@ OpenGL_Flightsim/assets/models/skyhawk.mtl
 OpenGL_Flightsim/assets/models/skyhawk.obj
 tools/terrain/heightmap_to_normalmap.py
 tools/terrain/parse_tif_heightmap.sh
+
+
+# Compiled Object files
+*.o
+*.obj
+*.hex
+*.bin
+*.axf
+*.sct
+*.scr
+*.dep
+*.d
+*.crf
+*.htm
+*.lnp
+*.map
+*.lst
+*.i
+*.sbr
+*.dbg
+
+# Keil IDE files
+*.uvguix.*
+*.uvoptx
+*.uvprojx.user
+*.uvmpw.user
+*.scvd
+*.uvtmp
+*.uvguix
+*.uvopt
+*.uvproj
+
+# Build directories
+Build/
+Debug/
+Release/
+Targets/
+*.bak
+
+# Other temporary files
+*.log
+*.tmp
+Thumbs.db
+.DS_Store

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(OpenGL_Flightsim)
+project(OpenGL_Flightsim C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -19,6 +19,23 @@ add_executable(flightsim
     src/main.cpp
     src/phi.h
     src/pid.h
+    # hackathon: fixed_wing + STM32 EKF + shared-memory bridge
+    src/hackathon/sim_types.h
+    src/hackathon/fixed_wing.h
+    src/hackathon/sim_bridge.h
+    src/hackathon/sim_bridge.cpp
+    src/hackathon/ekf.h
+    src/hackathon/ekf.c
+    src/hackathon/magcal.h
+    src/hackathon/magcal.c
+    src/hackathon/Gauss_elimination.h
+    src/hackathon/Gauss_elimination.c
+    src/hackathon/ekf_adapter.h
+    src/hackathon/ekf_adapter.cpp
+    src/hackathon/target.h
+    src/hackathon/target.cpp
+    src/hackathon/uav_app.h
+    src/hackathon/uav_app.cpp
     lib/stb_image.h
     lib/tiny_obj_loader.h
     lib/imgui/imconfig.h
@@ -49,6 +66,24 @@ target_link_libraries(flightsim
     GL
     GLU
 )
+
+if(UNIX AND NOT APPLE)
+    target_link_libraries(flightsim rt m)  # shm_open
+endif()
+
+# Headless test harness: same physics + STM32 EKF + shared memory, synthetic camera, no window.
+#   ./flightsim_headless [--time S] [--speedup X] [--no-comp] [--inner ekf|truth] [--align S] [--no-magcal]   then   python controller.py
+add_executable(flightsim_headless
+    src/hackathon/headless_sim.cpp
+    src/hackathon/ekf.c
+    src/hackathon/magcal.c
+    src/hackathon/Gauss_elimination.c
+    src/hackathon/ekf_adapter.cpp
+    src/hackathon/sim_bridge.cpp
+)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(flightsim_headless rt m)
+endif()
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
