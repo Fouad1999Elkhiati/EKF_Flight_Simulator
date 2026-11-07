@@ -14,7 +14,7 @@ For this project, the simulator was modified to create an autonomous UAV mission
 
 ---
 
-## 🏗️ Software Architecture
+## Software Architecture
 
 The system is highly modular, with three main processes communicating via shared memory. 
 
@@ -31,7 +31,7 @@ The system is highly modular, with three main processes communicating via shared
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 OpenGL_Flightsim/
@@ -70,3 +70,55 @@ OpenGL_Flightsim/
         ├── sim_types.h             # LAYOUT: The exact byte structure of the shared memory
         ├── target.cpp / target.h   # TARGET: Renders and respawns the magenta sphere
         └── headless_sim.cpp        # TEST RUNNER: Runs physics + EKF without the GUI (for CI/testing)
+
+## Build Instructions (Linux)
+
+### 1. Install dependencies
+
+```bash
+sudo apt update
+sudo apt install libsdl2-dev libsdl2-image-dev libglew-dev libgl1-mesa-dev \
+                 libglu1-mesa-dev libglm-dev cmake build-essential
+pip install numpy opencv-python
+```
+
+> **Note:** On recent Ubuntu/Debian releases, `pip install` outside a virtual environment may be blocked.
+> If so, create one first:
+> ```bash
+> python3 -m venv .venv
+> source .venv/bin/activate
+> pip install numpy opencv-python
+> ```
+
+### 2. Compile the simulator
+
+From the project root:
+
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build . -j$(nproc)
+```
+
+### 3. Run the mission
+
+You need two terminals: one for the simulator and one for the autonomous controller.
+
+**Terminal 1: simulator**
+
+```bash
+cd build
+./flightsim
+```
+
+**Terminal 2: autonomous controller** (from the project root)
+
+```bash
+python3 controller.py --show --attitude ekf
+```
+
+| Option | Description |
+|---|---|
+| `--show` | Opens a camera window with a yellow circle drawn around the detected target. |
+| `--attitude ekf` | Uses the EKF attitude estimate. |
