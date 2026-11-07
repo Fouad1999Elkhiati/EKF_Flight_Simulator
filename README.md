@@ -18,7 +18,7 @@ For this project, the simulator was modified to create an autonomous UAV mission
 
 The system is highly modular, with three main processes communicating via shared memory. 
 
-*(Insert the architecture image here: `![Software Architecture](architecture.png)`)*
+*(Insert the architecture image here: `![Software Architecture](Software_architecture.png)`)*
 
 ### Interaction Flow (as depicted in the architecture):
 1. **True Position:** The C++ Physics engine (`fixed_wing.h`) moves the airplane.
