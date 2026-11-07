@@ -75,7 +75,7 @@ OpenGL_Flightsim/
 
 ### 1. Install dependencies
 
-```
+```bash
 sudo apt update
 sudo apt install libsdl2-dev libsdl2-image-dev libglew-dev libgl1-mesa-dev \
                  libglu1-mesa-dev libglm-dev cmake build-essential
